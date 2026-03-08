@@ -1,5 +1,7 @@
 # 🤖 AI Agent Planning Document: SmartStore AI
 
+github Repo : 
+
 ## 1. Project Overview
 
 ### Website Topic and Purpose

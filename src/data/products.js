@@ -1,7 +1,10 @@
 // Mock product data - can be replaced with database queries later
+// Each product has an ownerId field that links it to a specific user
+// This ensures data isolation between users
 export const products = [
   {
     id: 1,
+    ownerId: 1, // Admin user
     name: "Wireless Noise-Cancelling Headphones",
     brand: "SoundMax",
     price: 299.99,
@@ -39,6 +42,7 @@ export const products = [
   },
   {
     id: 2,
+    ownerId: 1, // Admin user
     name: "Ultra-Slim Laptop 15 Pro",
     brand: "TechNova",
     price: 1299.99,
@@ -77,6 +81,7 @@ export const products = [
   },
   {
     id: 3,
+    ownerId: 1, // Admin user
     name: "Smart Fitness Watch X3",
     brand: "FitPro",
     price: 199.99,
@@ -115,6 +120,7 @@ export const products = [
   },
   {
     id: 4,
+    ownerId: 1, // Admin user
     name: "4K Ultra HD Action Camera",
     brand: "AdventureCam",
     price: 349.99,
@@ -153,6 +159,7 @@ export const products = [
   },
   {
     id: 5,
+    ownerId: 1, // Admin user
     name: "Ergonomic Mechanical Keyboard",
     brand: "TypeMaster",
     price: 159.99,
@@ -191,6 +198,7 @@ export const products = [
   },
   {
     id: 6,
+    ownerId: 2, // John Doe (regular user)
     name: "Portable Bluetooth Speaker",
     brand: "SoundMax",
     price: 89.99,
@@ -229,6 +237,7 @@ export const products = [
   },
   {
     id: 7,
+    ownerId: 2, // John Doe (regular user)
     name: "Smart Home Hub Pro",
     brand: "HomeTech",
     price: 129.99,
@@ -267,6 +276,7 @@ export const products = [
   },
   {
     id: 8,
+    ownerId: 2, // John Doe (regular user)
     name: "Professional Drone X500",
     brand: "SkyView",
     price: 899.99,
@@ -305,6 +315,7 @@ export const products = [
   },
   {
     id: 9,
+    ownerId: 3, // Demo user
     name: "Wireless Charging Pad Duo",
     brand: "ChargeTech",
     price: 49.99,
@@ -343,6 +354,7 @@ export const products = [
   },
   {
     id: 10,
+    ownerId: 3, // Demo user
     name: "Gaming Mouse Ultra",
     brand: "TypeMaster",
     price: 79.99,
@@ -381,53 +393,87 @@ export const products = [
   }
 ];
 
-// Service layer functions - easily replaceable with database calls
-export function getAllProducts() {
-  return products;
+// ===== Service layer functions - filter by userId for data isolation =====
+
+/**
+ * Get all products belonging to a specific user
+ * This is the core of our data access control
+ */
+export function getProductsByUser(userId) {
+  return products.filter(p => p.ownerId === userId);
 }
 
-export function getProductById(id) {
-  return products.find(p => p.id === parseInt(id));
+/**
+ * Get a single product by ID - only if it belongs to the user
+ */
+export function getProductByIdForUser(id, userId) {
+  const product = products.find(p => p.id === parseInt(id));
+  if (!product || product.ownerId !== userId) {
+    return null; // Product doesn't exist OR doesn't belong to this user
+  }
+  return product;
 }
 
-export function getProductsByCategory(category) {
-  return products.filter(p => p.category === category);
+/**
+ * Get products by category - only for this user's products
+ */
+export function getProductsByCategoryForUser(category, userId) {
+  return products.filter(p => p.category === category && p.ownerId === userId);
 }
 
-export function searchProducts(query) {
+/**
+ * Search products - only within this user's products
+ */
+export function searchProductsForUser(query, userId) {
   const q = query.toLowerCase();
   return products.filter(p =>
-    p.name.toLowerCase().includes(q) ||
-    p.description.toLowerCase().includes(q) ||
-    p.brand.toLowerCase().includes(q) ||
-    p.category.toLowerCase().includes(q) ||
-    p.tags.some(t => t.toLowerCase().includes(q))
+    p.ownerId === userId && (
+      p.name.toLowerCase().includes(q) ||
+      p.description.toLowerCase().includes(q) ||
+      p.brand.toLowerCase().includes(q) ||
+      p.category.toLowerCase().includes(q) ||
+      p.tags.some(t => t.toLowerCase().includes(q))
+    )
   );
 }
 
-export function getCategories() {
-  return [...new Set(products.map(p => p.category))];
+/**
+ * Get unique categories for this user's products
+ */
+export function getCategoriesForUser(userId) {
+  const userProducts = products.filter(p => p.ownerId === userId);
+  return [...new Set(userProducts.map(p => p.category))];
 }
 
-export function getBrands() {
-  return [...new Set(products.map(p => p.brand))];
+/**
+ * Get unique brands for this user's products
+ */
+export function getBrandsForUser(userId) {
+  const userProducts = products.filter(p => p.ownerId === userId);
+  return [...new Set(userProducts.map(p => p.brand))];
 }
 
-export function getProductsSummaryForAI() {
-  return products.map(p => ({
-    id: p.id,
-    name: p.name,
-    brand: p.brand,
-    price: p.price,
-    originalPrice: p.originalPrice,
-    category: p.category,
-    subcategory: p.subcategory,
-    rating: p.rating,
-    reviewCount: p.reviewCount,
-    stock: p.stock,
-    description: p.description,
-    features: p.features,
-    specifications: p.specifications,
-    tags: p.tags
-  }));
+/**
+ * Get product summary for AI - only this user's products
+ * This prevents the AI from revealing other users' data
+ */
+export function getProductsSummaryForAIByUser(userId) {
+  return products
+    .filter(p => p.ownerId === userId)
+    .map(p => ({
+      id: p.id,
+      name: p.name,
+      brand: p.brand,
+      price: p.price,
+      originalPrice: p.originalPrice,
+      category: p.category,
+      subcategory: p.subcategory,
+      rating: p.rating,
+      reviewCount: p.reviewCount,
+      stock: p.stock,
+      description: p.description,
+      features: p.features,
+      specifications: p.specifications,
+      tags: p.tags
+    }));
 }

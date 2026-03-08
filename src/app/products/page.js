@@ -7,7 +7,7 @@ import Link from 'next/link';
 import styles from './products.module.css';
 
 export default function ProductsPage() {
-    const { user, loading } = useAuth();
+    const { user, loading, authFetch } = useAuth();
     const router = useRouter();
     const [products, setProducts] = useState([]);
     const [filteredProducts, setFilteredProducts] = useState([]);
@@ -24,8 +24,8 @@ export default function ProductsPage() {
     }, [user, loading, router]);
 
     useEffect(() => {
-        fetchProducts();
-    }, []);
+        if (user && authFetch) fetchProducts();
+    }, [user, authFetch]);
 
     useEffect(() => {
         filterProducts();
@@ -33,7 +33,8 @@ export default function ProductsPage() {
 
     const fetchProducts = async () => {
         try {
-            const res = await fetch('/api/products');
+            const res = await authFetch('/api/products');
+            if (!res) return; // Auth failed, user redirected
             const data = await res.json();
             if (data.success) {
                 setProducts(data.products);

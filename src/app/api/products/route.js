@@ -1,7 +1,13 @@
 import { NextResponse } from 'next/server';
-import { getAllProducts, searchProducts, getProductsByCategory, getCategories, getBrands } from '@/data/products';
+import { authenticateRequest } from '@/lib/auth-middleware';
+import { getProductsByUser, searchProductsForUser, getProductsByCategoryForUser, getCategoriesForUser, getBrandsForUser } from '@/data/products';
 
 export async function GET(request) {
+    // Step 1: Authenticate the request - REQUIRE valid JWT
+    const authResult = authenticateRequest(request);
+    if (authResult.error) return authResult.error; // Returns 401/403
+    const user = authResult.user;
+
     try {
         const { searchParams } = new URL(request.url);
         const query = searchParams.get('q');
@@ -12,12 +18,13 @@ export async function GET(request) {
 
         let results;
 
+        // Step 2: All queries are filtered by user ID - data isolation
         if (query) {
-            results = searchProducts(query);
+            results = searchProductsForUser(query, user.id);
         } else if (category && category !== 'all') {
-            results = getProductsByCategory(category);
+            results = getProductsByCategoryForUser(category, user.id);
         } else {
-            results = getAllProducts();
+            results = getProductsByUser(user.id);
         }
 
         // Apply price filter
@@ -53,8 +60,8 @@ export async function GET(request) {
             success: true,
             products: results,
             total: results.length,
-            categories: getCategories(),
-            brands: getBrands()
+            categories: getCategoriesForUser(user.id),
+            brands: getBrandsForUser(user.id)
         });
     } catch (error) {
         return NextResponse.json(

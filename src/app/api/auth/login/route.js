@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { authenticateUser } from '@/data/users';
+import { generateToken } from '@/lib/jwt';
 
 export async function POST(request) {
     try {
@@ -15,9 +16,13 @@ export async function POST(request) {
         const user = authenticateUser(email, password);
 
         if (user) {
+            // Generate JWT token
+            const token = generateToken(user);
+
             return NextResponse.json({
                 success: true,
                 user,
+                token, // Send JWT token to client
                 message: 'Login successful!'
             });
         } else {

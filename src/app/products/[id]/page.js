@@ -8,7 +8,7 @@ import styles from './productDetail.module.css';
 
 export default function ProductDetailPage({ params }) {
     const { id } = use(params);
-    const { user, loading } = useAuth();
+    const { user, loading, authFetch } = useAuth();
     const router = useRouter();
     const [product, setProduct] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
@@ -24,12 +24,13 @@ export default function ProductDetailPage({ params }) {
     }, [user, loading, router]);
 
     useEffect(() => {
-        if (id) fetchProduct();
-    }, [id]);
+        if (id && user && authFetch) fetchProduct();
+    }, [id, user, authFetch]);
 
     const fetchProduct = async () => {
         try {
-            const res = await fetch(`/api/products/${id}`);
+            const res = await authFetch(`/api/products/${id}`);
+            if (!res) return;
             const data = await res.json();
             if (data.success) {
                 setProduct(data.product);
@@ -48,7 +49,7 @@ export default function ProductDetailPage({ params }) {
         setAiResponse('');
 
         try {
-            const res = await fetch('/api/ai/chat', {
+            const res = await authFetch('/api/ai/chat', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({

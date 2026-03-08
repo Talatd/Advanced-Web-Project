@@ -1,15 +1,21 @@
 import { NextResponse } from 'next/server';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { authenticateRequest } from '@/lib/auth-middleware';
 import { validateMessage, getSystemPrompt } from '@/lib/ai-security';
-import { getProductsSummaryForAI } from '@/data/products';
+import { getProductsSummaryForAIByUser } from '@/data/products';
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
 
 export async function POST(request) {
+    // Step 1: Authenticate the request - REQUIRE valid JWT
+    const authResult = authenticateRequest(request);
+    if (authResult.error) return authResult.error; // Returns 401/403
+    const user = authResult.user;
+
     try {
         const { message, history } = await request.json();
 
-        // Step 1: Validate and sanitize the message
+        // Step 2: Validate and sanitize the message (prompt injection check)
         const validation = validateMessage(message);
         if (!validation.valid) {
             return NextResponse.json({
@@ -19,20 +25,20 @@ export async function POST(request) {
             });
         }
 
-        // Step 2: Check if API key is configured
+        // Step 3: Check if API key is configured
         if (!process.env.GEMINI_API_KEY || process.env.GEMINI_API_KEY === 'YOUR_GEMINI_API_KEY_HERE') {
             return NextResponse.json({
                 success: true,
-                response: "⚠️ **AI Assistant is not configured yet.**\n\nTo enable AI features, please add your Gemini API key to the `.env.local` file:\n\n```\nGEMINI_API_KEY=your_actual_api_key_here\n```\n\nYou can get a free API key from [Google AI Studio](https://aistudio.google.com/apikey).\n\n---\n\n**Demo Response:** I'm SmartStore AI Assistant! Once configured, I can help you find products, compare specifications, and answer questions about our catalog. Try asking me about headphones, laptops, or smartwatches! 🛒",
+                response: "⚠️ **AI Assistant is not configured yet.**\n\nTo enable AI features, please add your Gemini API key to the `.env.local` file:\n\n```\nGEMINI_API_KEY=your_actual_api_key_here\n```\n\nYou can get a free API key from [Google AI Studio](https://aistudio.google.com/apikey).\n\n---\n\n**Demo Response:** I'm SmartStore AI Assistant! Once configured, I can help you find products, compare specifications, and answer questions about your catalog. Try asking me about your products! 🛒",
                 demo: true
             });
         }
 
-        // Step 3: Prepare product data for context
-        const productData = getProductsSummaryForAI();
+        // Step 4: Get ONLY this user's products for AI context
+        const productData = getProductsSummaryForAIByUser(user.id);
         const systemPrompt = getSystemPrompt(productData);
 
-        // Step 4: Call Gemini API
+        // Step 5: Call Gemini API
         const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
 
         // Build chat history
@@ -58,7 +64,6 @@ export async function POST(request) {
     } catch (error) {
         console.error('AI Chat Error:', error);
 
-        // Handle specific API errors
         if (error.message?.includes('API_KEY')) {
             return NextResponse.json({
                 success: false,

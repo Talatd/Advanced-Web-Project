@@ -1,9 +1,11 @@
 "use client";
 
 import { useState, useRef, useEffect } from 'react';
+import { useAuth } from '@/context/AuthContext';
 import styles from './ChatBot.module.css';
 
 export default function ChatBot() {
+    const { user, authFetch } = useAuth();
     const [isOpen, setIsOpen] = useState(false);
     const [messages, setMessages] = useState([
         {
@@ -45,11 +47,13 @@ export default function ChatBot() {
                 content: m.content
             }));
 
-            const res = await fetch('/api/ai/chat', {
+            const res = await authFetch('/api/ai/chat', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ message: userMessage, history }),
             });
+
+            if (!res) return; // Auth failed
 
             const data = await res.json();
 
